@@ -7,33 +7,62 @@ const KEY_URL = 'https://restcountries.com/v3.1'
 const refs = {
     inputCountry: document.querySelector("#search-box"),
     countyList: document.querySelector(".country-list"),
+    countryInfo: document.querySelector(".country-info"),
 }
 
-console.log("done");
+// console.log("done");
 
 refs.inputCountry.addEventListener('input', debounce(fetchCountries, DEBOUNCE_DELAY));
 
 function fetchCountries(e) {
-    console.log(refs.inputCountry.value);
-    fetch(`${KEY_URL}/name/${refs.inputCountry.value}?fields=name,capital,population,flags,languages`)
-        .then(r => r.json())
-        .then(response => {
-            console.log("done");
-            if (response.length > 10) {
-                Notify.info('Too many matches found. Please enter a more specific name.');
-            } else if (response.length > 1 && response.length < 10) {
-                makeMarkupforCounties(response);
+    const country = refs.inputCountry.value.trim();
+    console.log(country);
+    clearMarkup();
+    if (!country) {
+        return;
+    }
+    fetch(`${KEY_URL}/name/${country}?fields=name,capital,population,flags,languages`)
+        .then((response => {
+            if (!response.ok) {
+                throw new Error(response.status);
             }
-        }).catch(error => console.log(error));
+            return response.json();
+        })).then(data => {
+            console.log("done");
+            if (data.length > 10) {
+                Notify.info('Too many matches found. Please enter a more specific name.');
+            } else if (data.length > 1 && data.length < 10) {
+                makeMarkupforCounties(data);
+            } else if (data.length === 1) {
+                makeMarkupInfo(data);
+            }
+        }).catch(error => Notify.failure("Oops, there is no country with that name"));
 }
 
 function makeMarkupforCounties(countries) {
-    countiesMarkup = countries.map(({flags, name}) => {
+    const countriesMarkup = countries.map(({flags, name}) => {
         return `<li>
                     <img src="${flags.svg}" width="60" alt="${name.official}">
                     <p>${name.official}</p> 
                 </li>`
     }).join("");
-    console.log(countiesMarkup);
-    refs.countyList.insertAdjacentHTML("afterbegin", countiesMarkup);
+    console.log(countriesMarkup);
+    refs.countyList.insertAdjacentHTML("afterbegin", countriesMarkup);
 }
+
+function makeMarkupInfo(country) {
+    const countryMarkup = country.map(({flags, name, capital, population, languages}) => {
+        return `<img src="${flags.svg}" width="60" alt="${name.official}">${name.official}
+                    <p>Столиця: ${capital}</p>
+                    <p>Населення: ${population}</p>
+                    <p>Мови: ${Object.values(languages)}</p>`
+        }).join("");
+    console.log(countryMarkup);
+    refs.countryInfo.insertAdjacentHTML("afterbegin", countryMarkup);
+}
+
+function clearMarkup() {
+    refs.countyList.innerHTML = '';
+    refs.countryInfo.innerHTML = '';
+
+} 
